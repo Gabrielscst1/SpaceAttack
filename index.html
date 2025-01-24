@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Space Attack</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Space Attack</h1>
+    </header>
+
+    <main>
+      <section id="modal">
+        <h2>Pronto?</h2>
+        <button type="button" id="start-game-btn">Começar</button>
+      </section>
+
+      <section id="endgame-dialog">
+        <h2>Recomeçar?</h2>
+        <small id="endgame-points"></small>
+        <button type="button" id="restart-game-btn">Começar</button>
+      </section>
+
+      <section id="game-container">
+        <canvas id="game"></canvas>
+      </section>
+    </main>
+    <script src="./game.js"></script>
+  </body>
+</html>
