@@ -36,12 +36,16 @@ let enemy = {
   speed: 2, // Velocidade do inimigo
 };
 
-let item = {
-  x: Math.random() * (canvas.width - 20),
-  y: Math.random() * (canvas.height - 20),
-  width: 20,
-  height: 20,
+let genItem = () => {
+  return {
+    x: Math.random() * (canvas.width - 20),
+    y: Math.random() * (canvas.height - 20),
+    width: 20,
+    height: 20,
+  };
 };
+
+let item = genItem();
 
 let score = 0; // Pontuação do jogador
 
@@ -92,7 +96,12 @@ function update() {
     player.y < item.y + item.height &&
     player.y + player.height > item.y
   ) {
+    clearItem(item);
+
     score += 10; // Aumenta a pontuação
+
+    item = genItem();
+    drawItem(item);
     // somColeta.play(); // Comentário temporário
 
     // Não reposicione o item aqui
@@ -108,6 +117,8 @@ function update() {
     player.y + player.height > enemy.y
   ) {
     document.getElementById("endgame-dialog").style.display = "flex";
+    document.getElementById("endgame-points").innerHTML = score;
+    score = 0;
   }
 }
 
@@ -131,19 +142,26 @@ function draw() {
   ctx.fillStyle = "blue";
   ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
 
-  // Desenha o item (verde)
-  ctx.fillStyle = "green";
-  ctx.fillRect(item.x, item.y, item.width, item.height);
-
   // Exibe a pontuação
   ctx.fillStyle = "white";
   ctx.font = "20px Arial";
   ctx.fillText("Pontos: " + score, 10, 20);
 }
 
+function clearItem(item) {
+  ctx.clearRect(item.x, item.y, item.width, item.height);
+}
+
+function drawItem(item) {
+  // Desenha o item (verde)
+  ctx.fillStyle = "green";
+  ctx.fillRect(item.x, item.y, item.width, item.height);
+}
+
 // Loop do jogo
 function gameLoop() {
   update();
   draw();
+  drawItem(item);
   requestAnimationFrame(gameLoop);
 }
