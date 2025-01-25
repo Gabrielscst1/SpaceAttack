@@ -15,58 +15,39 @@ document.getElementById("restart-game-btn").addEventListener("click", () => {
 // Configuração do canvas
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-canvas.width = 800;
-canvas.height = 600;
+canvas.width = 640;
+canvas.height = 480;
 
-// Posição do jogador
-let player = {
-  x: 50,
-  y: 50,
-  width: 30,
-  height: 30,
-  speed: 5,
-};
+const tileSize = 32;
 
-// Criando o inimigo
-let enemy = {
-  x: 400, // Começa no meio da tela
-  y: 300,
-  width: 30,
-  height: 30,
-  speed: 2, // Velocidade do inimigo
-};
-
-let genItem = () => {
+// generate data for an in-game item
+const genItem = () => {
   return {
-    x: Math.random() * (canvas.width - 20),
-    y: Math.random() * (canvas.height - 20),
-    width: 20,
-    height: 20,
+    x: Math.random() * (canvas.width - tileSize / 2),
+    y: Math.random() * (canvas.height - tileSize / 2),
+    width: tileSize / 2,
+    height: tileSize / 2,
   };
 };
 
+// Posição do jogador
+let player = {
+  x: tileSize * 2,
+  y: tileSize * 2,
+  width: tileSize,
+  height: tileSize,
+  speed: 3,
+};
+// Criando o inimigo
+let enemy = {
+  x: canvas.width - tileSize * 2,
+  y: canvas.height - tileSize * 2,
+  width: tileSize,
+  height: tileSize,
+  speed: 1,
+};
 let item = genItem();
-
 let score = 0; // Pontuação do jogador
-
-// // Criar o objeto de áudio para a música de fundo
-// const musicaFundo = new Audio("musica.mp3");
-
-// // Configurar a música
-// musicaFundo.loop = true; // Faz a música tocar repetidamente
-// musicaFundo.volume = 0.3; // Ajusta o volume (0.0 a 1.0)
-
-// // Função para iniciar a música ao clicar na tela (evita bloqueios do navegador)
-// function tocarMusica() {
-//   musicaFundo.play().catch((error) => {
-//     console.warn(
-//       "O navegador bloqueou a reprodução automática. Clique na tela para iniciar a música."
-//     );
-//   });
-// }
-
-// // Iniciar a música ao clicar na tela
-// document.addEventListener("click", tocarMusica);
 
 // Capturar teclas pressionadas
 let keys = {};
@@ -74,7 +55,7 @@ window.addEventListener("keydown", (e) => (keys[e.key] = true));
 window.addEventListener("keyup", (e) => (keys[e.key] = false));
 
 // Atualizar posição do jogador
-function update() {
+const update = () => {
   // Movimentação do jogador com limites da tela
   if (keys["ArrowUp"] && player.y > 0) player.y -= player.speed;
   if (keys["ArrowDown"] && player.y + player.height < canvas.height)
@@ -97,16 +78,9 @@ function update() {
     player.y + player.height > item.y
   ) {
     clearItem(item);
-
-    score += 10; // Aumenta a pontuação
-
-    item = genItem();
-    drawItem(item);
+    score += 10;
+    drawItem((item = genItem()));
     // somColeta.play(); // Comentário temporário
-
-    // Não reposicione o item aqui
-    // item.x = Math.random() * (canvas.width - item.width);
-    // item.y = Math.random() * (canvas.height - item.height);
   }
 
   // Checar colisão entre jogador e inimigo
@@ -120,18 +94,18 @@ function update() {
     document.getElementById("endgame-points").innerHTML = score;
     score = 0;
   }
-}
+};
 
 // Função para reiniciar o jogo
-function resetGame() {
-  player.x = 50;
-  player.y = 50;
-  enemy.x = 400;
-  enemy.y = 300;
-}
+const resetGame = () => {
+  player.x = tileSize * 2;
+  player.y = tileSize * 2;
+  enemy.x = canvas.width - tileSize / 2;
+  enemy.y = canvas.height - tileSize / 2;
+};
 
 // Desenhar o jogo
-function draw() {
+const draw = () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpa a tela
 
   // Desenha o jogador (vermelho)
@@ -146,22 +120,39 @@ function draw() {
   ctx.fillStyle = "white";
   ctx.font = "20px Arial";
   ctx.fillText("Pontos: " + score, 10, 20);
-}
+};
 
-function clearItem(item) {
+const clearItem = (item) => {
   ctx.clearRect(item.x, item.y, item.width, item.height);
-}
+};
 
-function drawItem(item) {
-  // Desenha o item (verde)
+const drawItem = (item) => {
   ctx.fillStyle = "green";
   ctx.fillRect(item.x, item.y, item.width, item.height);
-}
+};
 
-// Loop do jogo
-function gameLoop() {
+const gameLoop = () => {
   update();
   draw();
   drawItem(item);
   requestAnimationFrame(gameLoop);
-}
+};
+
+// // Criar o objeto de áudio para a música de fundo
+// const musicaFundo = new Audio("musica.mp3");
+
+// // Configurar a música
+// musicaFundo.loop = true; // Faz a música tocar repetidamente
+// musicaFundo.volume = 0.3; // Ajusta o volume (0.0 a 1.0)
+
+// // Função para iniciar a música ao clicar na tela (evita bloqueios do navegador)
+// function tocarMusica() {
+//   musicaFundo.play().catch((error) => {
+//     console.warn(
+//       "O navegador bloqueou a reprodução automática. Clique na tela para iniciar a música."
+//     );
+//   });
+// }
+
+// // Iniciar a música ao clicar na tela
+// document.addEventListener("click", tocarMusica);
