@@ -59,7 +59,8 @@ let player = {
     speed: 5,
     normalSpeed: 5,
     hasSpeedBoost: false,
-    isInvincible: false // Estado de invencibilidade
+    isInvincible: false,
+    canAttack: false // Modo de ataque
 };
 
 // Criando os inimigos
@@ -70,7 +71,8 @@ let enemies = [
         width: 30,
         height: 30,
         speed: 2,
-        color: "blue"
+        color: "blue",
+        destroyed: false // Novo: estado de destruído
     },
     {
         x: 700,
@@ -78,7 +80,8 @@ let enemies = [
         width: 30,
         height: 30,
         speed: 1.5,
-        color: "purple"  // Segundo inimigo em roxo para diferenciar
+        color: "purple",  // Segundo inimigo em roxo para diferenciar
+        destroyed: false // Novo: estado de destruído
     }
 ];
 
@@ -99,6 +102,16 @@ let speedPowerUp = {
 
 // Power-up de invencibilidade
 let invincibilityPowerUp = {
+    x: Math.random() * (canvas.width - 20),
+    y: Math.random() * (canvas.height - 20),
+    width: 20,
+    height: 20,
+    active: true,
+    duration: 5000 // 5 segundos de duração
+};
+
+// Power-up de ataque
+let attackPowerUp = {
     x: Math.random() * (canvas.width - 20),
     y: Math.random() * (canvas.height - 20),
     width: 20,
@@ -193,6 +206,30 @@ function activateInvincibilityPowerUp() {
     }, invincibilityPowerUp.duration);
 }
 
+// Função para ativar o power-up de ataque
+function activateAttackPowerUp() {
+    player.canAttack = true;
+
+    // Criar efeito de partículas verdes
+    for (let i = 0; i < 15; i++) {
+        particulas.push(new Particula(player.x + player.width / 2, player.y + player.height / 2, "lime"));
+    }
+
+    // Desativa o power-up após a duração
+    setTimeout(() => {
+        player.canAttack = false;
+    }, attackPowerUp.duration);
+}
+
+// Função para reaparecer um inimigo após um tempo
+function reappearEnemy(enemy) {
+    setTimeout(() => {
+        enemy.destroyed = false; // Reativa o inimigo
+        enemy.x = Math.random() * (canvas.width - enemy.width); // Nova posição X
+        enemy.y = Math.random() * (canvas.height - enemy.height); // Nova posição Y
+    }, 5000); // Reaparece após 5 segundos
+}
+
 // Função para evitar sobreposição de inimigos
 function evitarSobreposicaoInimigos() {
     for (let i = 0; i < enemies.length; i++) {
@@ -231,10 +268,12 @@ function update() {
 
     // Atualizar posição dos inimigos
     enemies.forEach(enemy => {
-        if (enemy.x < player.x) enemy.x += enemy.speed;
-        if (enemy.x > player.x) enemy.x -= enemy.speed;
-        if (enemy.y < player.y) enemy.y += enemy.speed;
-        if (enemy.y > player.y) enemy.y -= enemy.speed;
+        if (!enemy.destroyed) { // Atualiza apenas inimigos não destruídos
+            if (enemy.x < player.x) enemy.x += enemy.speed;
+            if (enemy.x > player.x) enemy.x -= enemy.speed;
+            if (enemy.y < player.y) enemy.y += enemy.speed;
+            if (enemy.y > player.y) enemy.y -= enemy.speed;
+        }
     });
 
     // Evitar sobreposição de inimigos
@@ -266,6 +305,19 @@ function update() {
         }, 10000); // Reaparece após 10 segundos
     }
 
+    // Checar colisão com power-up de ataque
+    if (attackPowerUp.active && checkCollision(player, attackPowerUp)) {
+        attackPowerUp.active = false;
+        activateAttackPowerUp();
+        
+        // Reposicionar power-up após um tempo
+        setTimeout(() => {
+            attackPowerUp.x = Math.random() * (canvas.width - attackPowerUp.width);
+            attackPowerUp.y = Math.random() * (canvas.height - attackPowerUp.height);
+            attackPowerUp.active = true;
+        }, 10000); // Reaparece após 10 segundos
+    }
+
     // Checar colisão entre jogador e item
     if (checkCollision(player, item)) {
         score += 10;
@@ -289,22 +341,33 @@ function update() {
     }
 
     // Checar colisão entre jogador e inimigos
-    for (let enemy of enemies) {
-        if (checkCollision(player, enemy) && !player.isInvincible) {
-            vidas -= 1; // Perde uma vida
-            if (vidas <= 0) {
-                // Remove os event listeners antigos antes de resetar
-                window.removeEventListener("keydown", (e) => keys[e.key] = true);
-                window.removeEventListener("keyup", (e) => keys[e.key] = false);
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        if (checkCollision(player, enemies[i])) {
+            if (player.canAttack && !enemies[i].destroyed) {
+                // Destrói o inimigo
+                enemies[i].destroyed = true; // Marca o inimigo como destruído
+                reappearEnemy(enemies[i]); // Reaparece o inimigo após um tempo
                 
-                alert("Game Over! Você perdeu!");
-                resetGame();
-            } else {
-                // Reseta a posição do jogador após perder uma vida
-                player.x = 50;
-                player.y = 50;
+                // Cria partículas para o efeito de destruição
+                for (let j = 0; j < 10; j++) {
+                    particulas.push(new Particula(enemies[i].x + enemies[i].width / 2, enemies[i].y + enemies[i].height / 2, "red"));
+                }
+            } else if (!player.isInvincible && !enemies[i].destroyed) {
+                vidas -= 1; // Perde uma vida
+                if (vidas <= 0) {
+                    // Remove os event listeners antigos antes de resetar
+                    window.removeEventListener("keydown", (e) => keys[e.key] = true);
+                    window.removeEventListener("keyup", (e) => keys[e.key] = false);
+                    
+                    alert("Game Over! Você perdeu!");
+                    resetGame();
+                } else {
+                    // Reseta a posição do jogador após perder uma vida
+                    player.x = 50;
+                    player.y = 50;
+                }
+                break;
             }
-            break;
         }
     }
 }
@@ -327,12 +390,15 @@ function resetGame() {
     player.speed = player.normalSpeed;
     player.hasSpeedBoost = false;
     player.isInvincible = false;
+    player.canAttack = false;
 
     // Reseta inimigos
     enemies[0].x = 400;
     enemies[0].y = 300;
+    enemies[0].destroyed = false;
     enemies[1].x = 700;
     enemies[1].y = 500;
+    enemies[1].destroyed = false;
     
     // Reseta score e vidas
     score = 0;
@@ -352,17 +418,22 @@ function resetGame() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Desenha as estrelas
+    drawStars();
+
     // Desenha as partículas na tela
     particulas.forEach(p => p.draw());
 
     // Desenha o jogador (vermelho com efeito quando tem power-up)
-    ctx.fillStyle = player.hasSpeedBoost ? "orangered" : (player.isInvincible ? "gold" : "red");
+    ctx.fillStyle = player.canAttack ? "lime" : (player.hasSpeedBoost ? "orangered" : (player.isInvincible ? "gold" : "red"));
     ctx.fillRect(player.x, player.y, player.width, player.height);
 
     // Desenha os inimigos
     enemies.forEach(enemy => {
-        ctx.fillStyle = enemy.color;
-        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        if (!enemy.destroyed) { // Desenha apenas inimigos não destruídos
+            ctx.fillStyle = enemy.color;
+            ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        }
     });
 
     // Desenha o item verde
@@ -394,6 +465,20 @@ function draw() {
         ctx.stroke();
     }
 
+    // Desenha o power-up de ataque se estiver ativo
+    if (attackPowerUp.active) {
+        ctx.fillStyle = "lime";
+        ctx.fillRect(attackPowerUp.x, attackPowerUp.y, attackPowerUp.width, attackPowerUp.height);
+        // Desenha um ícone de espada no power-up
+        ctx.strokeStyle = "black";
+        ctx.beginPath();
+        ctx.moveTo(attackPowerUp.x + 5, attackPowerUp.y + 15);
+        ctx.lineTo(attackPowerUp.x + 10, attackPowerUp.y + 5);
+        ctx.lineTo(attackPowerUp.x + 15, attackPowerUp.y + 15);
+        ctx.lineTo(attackPowerUp.x + 10, attackPowerUp.y + 10);
+        ctx.stroke();
+    }
+
     // Exibe a pontuação e as vidas
     ctx.fillStyle = "white";
     ctx.font = "20px Arial";
@@ -409,6 +494,10 @@ function draw() {
         ctx.fillStyle = "gold";
         ctx.fillText("INVENCÍVEL!", 10, 95);
     }
+    if (player.canAttack) {
+        ctx.fillStyle = "lime";
+        ctx.fillText("ATAQUE ATIVO!", 10, 120);
+    }
 }
 
 // Menu de pausa
@@ -419,54 +508,6 @@ window.addEventListener("keydown", (e) => {
         isPaused = !isPaused; // Alterna entre pausado e despausado
     }
 });
-
-function draw() {
-    // Limpa o canvas e desenha as estrelas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawStars(); // Desenha o fundo estrelado
-
-    // Restante do código de desenho (jogador, inimigos, itens, etc.)
-    particulas.forEach(p => p.draw());
-    ctx.fillStyle = player.hasSpeedBoost ? "orangered" : (player.isInvincible ? "gold" : "red");
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-    enemies.forEach(enemy => {
-        ctx.fillStyle = enemy.color;
-        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
-    });
-    ctx.fillStyle = "green";
-    ctx.fillRect(item.x, item.y, item.width, item.height);
-    if (speedPowerUp.active) {
-        ctx.fillStyle = "yellow";
-        ctx.fillRect(speedPowerUp.x, speedPowerUp.y, speedPowerUp.width, speedPowerUp.height);
-        ctx.strokeStyle = "black";
-        ctx.beginPath();
-        ctx.moveTo(speedPowerUp.x + 5, speedPowerUp.y + 10);
-        ctx.lineTo(speedPowerUp.x + 12, speedPowerUp.y + 5);
-        ctx.lineTo(speedPowerUp.x + 8, speedPowerUp.y + 12);
-        ctx.lineTo(speedPowerUp.x + 15, speedPowerUp.y + 15);
-        ctx.stroke();
-    }
-    if (invincibilityPowerUp.active) {
-        ctx.fillStyle = "gold";
-        ctx.fillRect(invincibilityPowerUp.x, invincibilityPowerUp.y, invincibilityPowerUp.width, invincibilityPowerUp.height);
-        ctx.strokeStyle = "black";
-        ctx.beginPath();
-        ctx.arc(invincibilityPowerUp.x + 10, invincibilityPowerUp.y + 10, 10, 0, Math.PI * 2);
-        ctx.stroke();
-    }
-    ctx.fillStyle = "white";
-    ctx.font = "20px Arial";
-    ctx.fillText("Pontos: " + score, 10, 20);
-    ctx.fillText("Vidas: " + vidas, 10, 45);
-    if (player.hasSpeedBoost) {
-        ctx.fillStyle = "yellow";
-        ctx.fillText("SPEED BOOST!", 10, 70);
-    }
-    if (player.isInvincible) {
-        ctx.fillStyle = "gold";
-        ctx.fillText("INVENCÍVEL!", 10, 95);
-    }
-}
 
 // Loop do jogo
 function gameLoop() {
