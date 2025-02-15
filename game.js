@@ -1,158 +1,362 @@
-// lsitens for clicks in start-game-btn, then removes modal from view
-document.getElementById("start-game-btn").addEventListener("click", () => {
-  document.getElementById("modal").style.display = "none";
-
-  gameLoop(); // Inicia o jogo
-});
-
-// lsitens for clicks in restart-game-btn, then removes endgame-dialog from view
-document.getElementById("restart-game-btn").addEventListener("click", () => {
-  document.getElementById("endgame-dialog").style.display = "none";
-
-  resetGame();
-});
-
 // Configuração do canvas
-const canvas = document.getElementById("game");
+const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-canvas.width = 640;
-canvas.height = 480;
-
-const tileSize = 32;
-
-// generate data for an in-game item
-const genItem = () => {
-  return {
-    x: Math.random() * (canvas.width - tileSize / 2),
-    y: Math.random() * (canvas.height - tileSize / 2),
-    width: tileSize / 2,
-    height: tileSize / 2,
-  };
-};
+canvas.width = 800;
+canvas.height = 600;
 
 // Posição do jogador
 let player = {
-  x: tileSize * 2,
-  y: tileSize * 2,
-  width: tileSize,
-  height: tileSize,
-  speed: 3,
+    x: 50,
+    y: 50,
+    width: 30,
+    height: 30,
+    speed: 5,
+    normalSpeed: 5,
+    hasSpeedBoost: false,
+    isInvincible: false // Novo: estado de invencibilidade
 };
-// Criando o inimigo
-let enemy = {
-  x: canvas.width - tileSize * 2,
-  y: canvas.height - tileSize * 2,
-  width: tileSize,
-  height: tileSize,
-  speed: 1,
+
+// Criando os inimigos
+let enemies = [
+    {
+        x: 400,
+        y: 300,
+        width: 30,
+        height: 30,
+        speed: 2,
+        color: "blue"
+    },
+    {
+        x: 700,
+        y: 500,
+        width: 30,
+        height: 30,
+        speed: 1.5,
+        color: "purple"  // Segundo inimigo em roxo para diferenciar
+    }
+];
+
+// Criar o objeto de áudio para a música de fundo (opcional)
+const musicaFundo = new Audio("audio.mp3");
+musicaFundo.loop = true;
+musicaFundo.volume = 1.0;
+
+// Power-up de velocidade
+let speedPowerUp = {
+    x: Math.random() * (canvas.width - 20),
+    y: Math.random() * (canvas.height - 20),
+    width: 20,
+    height: 20,
+    active: true,
+    duration: 5000 // 5 segundos de duração
 };
-let item = genItem();
-let score = 0; // Pontuação do jogador
+
+// Power-up de invencibilidade
+let invincibilityPowerUp = {
+    x: Math.random() * (canvas.width - 20),
+    y: Math.random() * (canvas.height - 20),
+    width: 20,
+    height: 20,
+    active: true,
+    duration: 5000 // 5 segundos de duração
+};
+
+// Função para iniciar a música ao clicar na tela
+function tocarMusica() {
+    musicaFundo.play().catch(error => {
+        console.warn("O navegador bloqueou a reprodução automática. Clique na tela para iniciar a música.");
+    });
+}
+document.addEventListener("click", tocarMusica);
+
+// Definição do item coletável
+let item = {
+    x: Math.random() * (canvas.width - 20),
+    y: Math.random() * (canvas.height - 20),
+    width: 20,
+    height: 20
+};
+let score = 0;
+let vidas = 3; // Sistema de vidas
+
+// Array para armazenar as partículas
+let particulas = [];
+
+// Classe das partículas
+class Particula {
+    constructor(x, y, color = "yellow") {
+        this.x = x;
+        this.y = y;
+        this.size = Math.random() * 5 + 2;
+        this.speedX = (Math.random() - 0.5) * 2;
+        this.speedY = (Math.random() - 0.5) * 2;
+        this.alpha = 1;
+        this.color = color;
+    }
+
+    update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        this.alpha -= 0.02;
+    }
+
+    draw() {
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
 
 // Capturar teclas pressionadas
 let keys = {};
-window.addEventListener("keydown", (e) => (keys[e.key] = true));
-window.addEventListener("keyup", (e) => (keys[e.key] = false));
+window.addEventListener("keydown", (e) => keys[e.key] = true);
+window.addEventListener("keyup", (e) => keys[e.key] = false);
 
-// Atualizar posição do jogador
-const update = () => {
-  // Movimentação do jogador com limites da tela
-  if (keys["ArrowUp"] && player.y > 0) player.y -= player.speed;
-  if (keys["ArrowDown"] && player.y + player.height < canvas.height)
-    player.y += player.speed;
-  if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
-  if (keys["ArrowRight"] && player.x + player.width < canvas.width)
-    player.x += player.speed;
+// Função para ativar o power-up de velocidade
+function activateSpeedPowerUp() {
+    player.hasSpeedBoost = true;
+    player.speed = player.normalSpeed * 2; // Dobra a velocidade
+    
+    // Criar efeito de partículas azuis
+    for (let i = 0; i < 15; i++) {
+        particulas.push(new Particula(player.x + player.width / 2, player.y + player.height / 2, "cyan"));
+    }
 
-  // Lógica do inimigo perseguindo o jogador
-  if (enemy.x < player.x) enemy.x += enemy.speed;
-  if (enemy.x > player.x) enemy.x -= enemy.speed;
-  if (enemy.y < player.y) enemy.y += enemy.speed;
-  if (enemy.y > player.y) enemy.y -= enemy.speed;
+    // Desativa o power-up após a duração
+    setTimeout(() => {
+        player.hasSpeedBoost = false;
+        player.speed = player.normalSpeed;
+    }, speedPowerUp.duration);
+}
 
-  // Checar colisão entre jogador e item
-  if (
-    player.x < item.x + item.width &&
-    player.x + player.width > item.x &&
-    player.y < item.y + item.height &&
-    player.y + player.height > item.y
-  ) {
-    clearItem(item);
-    score += 10;
-    drawItem((item = genItem()));
-    // somColeta.play(); // Comentário temporário
-  }
+// Função para ativar o power-up de invencibilidade
+function activateInvincibilityPowerUp() {
+    player.isInvincible = true;
 
-  // Checar colisão entre jogador e inimigo
-  if (
-    player.x < enemy.x + enemy.width &&
-    player.x + player.width > enemy.x &&
-    player.y < enemy.y + enemy.height &&
-    player.y + player.height > enemy.y
-  ) {
-    document.getElementById("endgame-dialog").style.display = "flex";
-    document.getElementById("endgame-points").innerHTML = score;
-    score = 0;
-  }
-};
+    // Criar efeito de partículas douradas
+    for (let i = 0; i < 15; i++) {
+        particulas.push(new Particula(player.x + player.width / 2, player.y + player.height / 2, "gold"));
+    }
+
+    // Desativa o power-up após a duração
+    setTimeout(() => {
+        player.isInvincible = false;
+    }, invincibilityPowerUp.duration);
+}
+
+// Atualizar posição do jogador e lógica do jogo
+function update() {
+    // Movimentação do jogador com limites da tela
+    if (keys["ArrowUp"] && player.y > 0) player.y -= player.speed;
+    if (keys["ArrowDown"] && player.y + player.height < canvas.height) player.y += player.speed;
+    if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
+    if (keys["ArrowRight"] && player.x + player.width < canvas.width) player.x += player.speed;
+
+    // Atualizar posição dos inimigos
+    enemies.forEach(enemy => {
+        if (enemy.x < player.x) enemy.x += enemy.speed;
+        if (enemy.x > player.x) enemy.x -= enemy.speed;
+        if (enemy.y < player.y) enemy.y += enemy.speed;
+        if (enemy.y > player.y) enemy.y -= enemy.speed;
+    });
+
+    // Checar colisão com power-up de velocidade
+    if (speedPowerUp.active && checkCollision(player, speedPowerUp)) {
+        speedPowerUp.active = false;
+        activateSpeedPowerUp();
+        
+        // Reposicionar power-up após um tempo
+        setTimeout(() => {
+            speedPowerUp.x = Math.random() * (canvas.width - speedPowerUp.width);
+            speedPowerUp.y = Math.random() * (canvas.height - speedPowerUp.height);
+            speedPowerUp.active = true;
+        }, 10000); // Reaparece após 10 segundos
+    }
+
+    // Checar colisão com power-up de invencibilidade
+    if (invincibilityPowerUp.active && checkCollision(player, invincibilityPowerUp)) {
+        invincibilityPowerUp.active = false;
+        activateInvincibilityPowerUp();
+        
+        // Reposicionar power-up após um tempo
+        setTimeout(() => {
+            invincibilityPowerUp.x = Math.random() * (canvas.width - invincibilityPowerUp.width);
+            invincibilityPowerUp.y = Math.random() * (canvas.height - invincibilityPowerUp.height);
+            invincibilityPowerUp.active = true;
+        }, 10000); // Reaparece após 10 segundos
+    }
+
+    // Checar colisão entre jogador e item
+    if (checkCollision(player, item)) {
+        score += 10;
+
+        // Criar efeito de partículas ao coletar o item
+        for (let i = 0; i < 10; i++) {
+            particulas.push(new Particula(item.x + item.width / 2, item.y + item.height / 2));
+        }
+
+        // Reposiciona o item em um novo local aleatório
+        item.x = Math.random() * (canvas.width - item.width);
+        item.y = Math.random() * (canvas.height - item.height);
+    }
+
+    // Atualiza as partículas
+    for (let i = particulas.length - 1; i >= 0; i--) {
+        particulas[i].update();
+        if (particulas[i].alpha <= 0) {
+            particulas.splice(i, 1);
+        }
+    }
+
+    // Checar colisão entre jogador e inimigos
+    for (let enemy of enemies) {
+        if (checkCollision(player, enemy) && !player.isInvincible) {
+            vidas -= 1; // Perde uma vida
+            if (vidas <= 0) {
+                // Remove os event listeners antigos antes de resetar
+                window.removeEventListener("keydown", (e) => keys[e.key] = true);
+                window.removeEventListener("keyup", (e) => keys[e.key] = false);
+                
+                alert("Game Over! Você perdeu!");
+                resetGame();
+            } else {
+                // Reseta a posição do jogador após perder uma vida
+                player.x = 50;
+                player.y = 50;
+            }
+            break;
+        }
+    }
+}
+
+// Função auxiliar para verificar colisões
+function checkCollision(obj1, obj2) {
+    return (
+        obj1.x < obj2.x + obj2.width &&
+        obj1.x + obj1.width > obj2.x &&
+        obj1.y < obj2.y + obj2.height &&
+        obj1.y + obj1.height > obj2.y
+    );
+}
 
 // Função para reiniciar o jogo
-const resetGame = () => {
-  player.x = tileSize * 2;
-  player.y = tileSize * 2;
-  enemy.x = canvas.width - tileSize / 2;
-  enemy.y = canvas.height - tileSize / 2;
-};
+function resetGame() {
+    // Reseta posições
+    player.x = 50;
+    player.y = 50;
+    player.speed = player.normalSpeed;
+    player.hasSpeedBoost = false;
+    player.isInvincible = false;
+
+    // Reseta inimigos
+    enemies[0].x = 400;
+    enemies[0].y = 300;
+    enemies[1].x = 700;
+    enemies[1].y = 500;
+    
+    // Reseta score e vidas
+    score = 0;
+    vidas = 3;
+    
+    // Limpa o estado das teclas
+    keys = {};
+    
+    // Opcional: pausa breve para evitar movimento imediato após reset
+    setTimeout(() => {
+        window.addEventListener("keydown", (e) => keys[e.key] = true);
+        window.addEventListener("keyup", (e) => keys[e.key] = false);
+    }, 100);
+}
 
 // Desenhar o jogo
-const draw = () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpa a tela
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Desenha o jogador (vermelho)
-  ctx.fillStyle = "red";
-  ctx.fillRect(player.x, player.y, player.width, player.height);
+    // Desenha as partículas na tela
+    particulas.forEach(p => p.draw());
 
-  // Desenha o inimigo (azul)
-  ctx.fillStyle = "blue";
-  ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+    // Desenha o jogador (vermelho com efeito quando tem power-up)
+    ctx.fillStyle = player.hasSpeedBoost ? "orangered" : (player.isInvincible ? "gold" : "red");
+    ctx.fillRect(player.x, player.y, player.width, player.height);
 
-  // Exibe a pontuação
-  ctx.fillStyle = "white";
-  ctx.font = "20px Arial";
-  ctx.fillText("Pontos: " + score, 10, 20);
-};
+    // Desenha os inimigos
+    enemies.forEach(enemy => {
+        ctx.fillStyle = enemy.color;
+        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+    });
 
-const clearItem = (item) => {
-  ctx.clearRect(item.x, item.y, item.width, item.height);
-};
+    // Desenha o item verde
+    ctx.fillStyle = "green";
+    ctx.fillRect(item.x, item.y, item.width, item.height);
 
-const drawItem = (item) => {
-  ctx.fillStyle = "green";
-  ctx.fillRect(item.x, item.y, item.width, item.height);
-};
+    // Desenha o power-up de velocidade se estiver ativo
+    if (speedPowerUp.active) {
+        ctx.fillStyle = "yellow";
+        ctx.fillRect(speedPowerUp.x, speedPowerUp.y, speedPowerUp.width, speedPowerUp.height);
+        // Desenha um raio no power-up
+        ctx.strokeStyle = "black";
+        ctx.beginPath();
+        ctx.moveTo(speedPowerUp.x + 5, speedPowerUp.y + 10);
+        ctx.lineTo(speedPowerUp.x + 12, speedPowerUp.y + 5);
+        ctx.lineTo(speedPowerUp.x + 8, speedPowerUp.y + 12);
+        ctx.lineTo(speedPowerUp.x + 15, speedPowerUp.y + 15);
+        ctx.stroke();
+    }
 
-const gameLoop = () => {
-  update();
-  draw();
-  drawItem(item);
-  requestAnimationFrame(gameLoop);
-};
+    // Desenha o power-up de invencibilidade se estiver ativo
+    if (invincibilityPowerUp.active) {
+        ctx.fillStyle = "gold";
+        ctx.fillRect(invincibilityPowerUp.x, invincibilityPowerUp.y, invincibilityPowerUp.width, invincibilityPowerUp.height);
+        // Desenha um escudo no power-up
+        ctx.strokeStyle = "black";
+        ctx.beginPath();
+        ctx.arc(invincibilityPowerUp.x + 10, invincibilityPowerUp.y + 10, 10, 0, Math.PI * 2);
+        ctx.stroke();
+    }
 
-// // Criar o objeto de áudio para a música de fundo
-// const musicaFundo = new Audio("musica.mp3");
+    // Exibe a pontuação e as vidas
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("Pontos: " + score, 10, 20);
+    ctx.fillText("Vidas: " + vidas, 10, 45);
 
-// // Configurar a música
-// musicaFundo.loop = true; // Faz a música tocar repetidamente
-// musicaFundo.volume = 0.3; // Ajusta o volume (0.0 a 1.0)
+    // Mostra indicador de power-up ativo
+    if (player.hasSpeedBoost) {
+        ctx.fillStyle = "yellow";
+        ctx.fillText("SPEED BOOST!", 10, 70);
+    }
+    if (player.isInvincible) {
+        ctx.fillStyle = "gold";
+        ctx.fillText("INVENCÍVEL!", 10, 95);
+    }
+}
 
-// // Função para iniciar a música ao clicar na tela (evita bloqueios do navegador)
-// function tocarMusica() {
-//   musicaFundo.play().catch((error) => {
-//     console.warn(
-//       "O navegador bloqueou a reprodução automática. Clique na tela para iniciar a música."
-//     );
-//   });
-// }
+// Menu de pausa
+let isPaused = false;
 
-// // Iniciar a música ao clicar na tela
-// document.addEventListener("click", tocarMusica);
+window.addEventListener("keydown", (e) => {
+    if (e.key === "p") {
+        isPaused = !isPaused; // Alterna entre pausado e despausado
+    }
+});
+
+// Loop do jogo
+function gameLoop() {
+    if (!isPaused) {
+        update();
+        draw();
+    } else {
+        // Desenha a tela de pausa
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.font = "40px Arial";
+        ctx.fillText("Pausado", canvas.width / 2 - 80, canvas.height / 2);
+    }
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop(); // Inicia o jogo
