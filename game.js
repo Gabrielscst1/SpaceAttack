@@ -4,6 +4,52 @@ const ctx = canvas.getContext("2d");
 canvas.width = 800;
 canvas.height = 600;
 
+// Array para armazenar as estrelas
+let stars = [];
+
+// Classe para as estrelas
+class Star {
+    constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 2 + 1; // Tamanho da estrela
+        this.speed = Math.random() * 0.5 + 0.2; // Velocidade de movimento
+    }
+
+    update() {
+        this.y += this.speed; // Move a estrela para baixo
+        if (this.y > canvas.height) { // Se a estrela sair da tela, reposiciona no topo
+            this.y = 0;
+            this.x = Math.random() * canvas.width;
+        }
+    }
+
+    draw() {
+        ctx.fillStyle = "white";
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+// Função para criar as estrelas
+function createStars() {
+    for (let i = 0; i < 100; i++) { // Cria 100 estrelas
+        stars.push(new Star());
+    }
+}
+
+// Função para atualizar e desenhar as estrelas
+function drawStars() {
+    stars.forEach(star => {
+        star.update();
+        star.draw();
+    });
+}
+
+// Inicializa as estrelas
+createStars();
+
 // Posição do jogador
 let player = {
     x: 50,
@@ -373,6 +419,54 @@ window.addEventListener("keydown", (e) => {
         isPaused = !isPaused; // Alterna entre pausado e despausado
     }
 });
+
+function draw() {
+    // Limpa o canvas e desenha as estrelas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawStars(); // Desenha o fundo estrelado
+
+    // Restante do código de desenho (jogador, inimigos, itens, etc.)
+    particulas.forEach(p => p.draw());
+    ctx.fillStyle = player.hasSpeedBoost ? "orangered" : (player.isInvincible ? "gold" : "red");
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+    enemies.forEach(enemy => {
+        ctx.fillStyle = enemy.color;
+        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+    });
+    ctx.fillStyle = "green";
+    ctx.fillRect(item.x, item.y, item.width, item.height);
+    if (speedPowerUp.active) {
+        ctx.fillStyle = "yellow";
+        ctx.fillRect(speedPowerUp.x, speedPowerUp.y, speedPowerUp.width, speedPowerUp.height);
+        ctx.strokeStyle = "black";
+        ctx.beginPath();
+        ctx.moveTo(speedPowerUp.x + 5, speedPowerUp.y + 10);
+        ctx.lineTo(speedPowerUp.x + 12, speedPowerUp.y + 5);
+        ctx.lineTo(speedPowerUp.x + 8, speedPowerUp.y + 12);
+        ctx.lineTo(speedPowerUp.x + 15, speedPowerUp.y + 15);
+        ctx.stroke();
+    }
+    if (invincibilityPowerUp.active) {
+        ctx.fillStyle = "gold";
+        ctx.fillRect(invincibilityPowerUp.x, invincibilityPowerUp.y, invincibilityPowerUp.width, invincibilityPowerUp.height);
+        ctx.strokeStyle = "black";
+        ctx.beginPath();
+        ctx.arc(invincibilityPowerUp.x + 10, invincibilityPowerUp.y + 10, 10, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("Pontos: " + score, 10, 20);
+    ctx.fillText("Vidas: " + vidas, 10, 45);
+    if (player.hasSpeedBoost) {
+        ctx.fillStyle = "yellow";
+        ctx.fillText("SPEED BOOST!", 10, 70);
+    }
+    if (player.isInvincible) {
+        ctx.fillStyle = "gold";
+        ctx.fillText("INVENCÍVEL!", 10, 95);
+    }
+}
 
 // Loop do jogo
 function gameLoop() {
