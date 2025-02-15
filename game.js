@@ -13,7 +13,7 @@ let player = {
     speed: 5,
     normalSpeed: 5,
     hasSpeedBoost: false,
-    isInvincible: false // Novo: estado de invencibilidade
+    isInvincible: false // Estado de invencibilidade
 };
 
 // Criando os inimigos
@@ -147,6 +147,34 @@ function activateInvincibilityPowerUp() {
     }, invincibilityPowerUp.duration);
 }
 
+// Função para evitar sobreposição de inimigos
+function evitarSobreposicaoInimigos() {
+    for (let i = 0; i < enemies.length; i++) {
+        for (let j = i + 1; j < enemies.length; j++) {
+            if (checkCollision(enemies[i], enemies[j])) {
+                // Calcula a direção de afastamento
+                let dx = enemies[i].x - enemies[j].x;
+                let dy = enemies[i].y - enemies[j].y;
+
+                // Normaliza a direção
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                let overlap = (enemies[i].width + enemies[j].width) / 2 - distance;
+                if (overlap > 0) {
+                    let angle = Math.atan2(dy, dx);
+                    let moveX = Math.cos(angle) * overlap / 2;
+                    let moveY = Math.sin(angle) * overlap / 2;
+
+                    // Move os inimigos para longe um do outro
+                    enemies[i].x += moveX;
+                    enemies[i].y += moveY;
+                    enemies[j].x -= moveX;
+                    enemies[j].y -= moveY;
+                }
+            }
+        }
+    }
+}
+
 // Atualizar posição do jogador e lógica do jogo
 function update() {
     // Movimentação do jogador com limites da tela
@@ -162,6 +190,9 @@ function update() {
         if (enemy.y < player.y) enemy.y += enemy.speed;
         if (enemy.y > player.y) enemy.y -= enemy.speed;
     });
+
+    // Evitar sobreposição de inimigos
+    evitarSobreposicaoInimigos();
 
     // Checar colisão com power-up de velocidade
     if (speedPowerUp.active && checkCollision(player, speedPowerUp)) {
