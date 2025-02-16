@@ -258,6 +258,22 @@ function evitarSobreposicaoInimigos() {
     }
 }
 
+// Função para adicionar um novo inimigo
+function addNewEnemy() {
+    const colors = ["blue", "purple", "red", "green", "orange"]; // Cores disponíveis para os inimigos
+    const randomColor = colors[Math.floor(Math.random() * colors.length)]; // Escolhe uma cor aleatória
+
+    enemies.push({
+        x: Math.random() * (canvas.width - 30),
+        y: Math.random() * (canvas.height - 30),
+        width: 30,
+        height: 30,
+        speed: Math.random() * 2 + 1, // Velocidade aleatória entre 1 e 3
+        color: randomColor,
+        destroyed: false
+    });
+}
+
 // Atualizar posição do jogador e lógica do jogo
 function update() {
     // Movimentação do jogador com limites da tela
@@ -330,6 +346,11 @@ function update() {
         // Reposiciona o item em um novo local aleatório
         item.x = Math.random() * (canvas.width - item.width);
         item.y = Math.random() * (canvas.height - item.height);
+
+        // Adiciona um novo inimigo a cada 100 pontos
+        if (score % 100 === 0) {
+            addNewEnemy();
+        }
     }
 
     // Atualiza as partículas
@@ -393,12 +414,26 @@ function resetGame() {
     player.canAttack = false;
 
     // Reseta inimigos
-    enemies[0].x = 400;
-    enemies[0].y = 300;
-    enemies[0].destroyed = false;
-    enemies[1].x = 700;
-    enemies[1].y = 500;
-    enemies[1].destroyed = false;
+    enemies = [
+        {
+            x: 400,
+            y: 300,
+            width: 30,
+            height: 30,
+            speed: 2,
+            color: "blue",
+            destroyed: false
+        },
+        {
+            x: 700,
+            y: 500,
+            width: 30,
+            height: 30,
+            speed: 1.5,
+            color: "purple",
+            destroyed: false
+        }
+    ];
     
     // Reseta score e vidas
     score = 0;
@@ -488,7 +523,7 @@ function draw() {
     // Mostra indicador de power-up ativo
     if (player.hasSpeedBoost) {
         ctx.fillStyle = "yellow";
-        ctx.fillText("SPEED BOOST!", 10, 70);
+        ctx.fillText("PODER DO SONIC!", 10, 70);
     }
     if (player.isInvincible) {
         ctx.fillStyle = "gold";
